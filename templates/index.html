@@ -1,1 +1,926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PlantGuard — AI Disease Detection</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,400;1,600&family=Jost:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root{
+  --ink:#07120a;--forest:#0d2b1a;--emerald:#1a6b3c;--leaf:#27a058;
+  --lime:#6dcf87;--gold:#d4a847;--gold-lt:#e8c56a;
+  --cream:#f8f4ee;--sand:#ede8de;--terra:#c0392b;--terra-lt:#e74c3c;
+  --muted:#5a6e60;--r:16px;--r-lg:24px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Jost',sans-serif;background:var(--ink);color:var(--cream);overflow-x:hidden;cursor:none}
+img{max-width:100%;display:block}
+a{text-decoration:none;color:inherit}
+ul{list-style:none}
 
+/* CURSOR */
+#cur-dot,#cur-ring,#cur-glow{position:fixed;pointer-events:none;border-radius:50%;transform:translate(-50%,-50%)}
+#cur-dot{width:8px;height:8px;background:var(--lime);z-index:9999;transition:width .3s,height .3s}
+#cur-ring{width:36px;height:36px;border:1.5px solid rgba(109,207,135,.55);z-index:9998;transition:width .3s,height .3s,border-color .3s}
+#cur-glow{width:200px;height:200px;background:radial-gradient(circle,rgba(109,207,135,.1) 0%,transparent 70%);z-index:9997}
+
+/* SCROLL BAR */
+#sbar{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,var(--emerald),var(--gold));z-index:9996;width:0%;box-shadow:0 0 10px var(--leaf)}
+
+/* NAVBAR */
+.nav{position:fixed;top:0;left:0;right:0;z-index:900;height:74px;display:flex;align-items:center;justify-content:space-between;padding:0 5%;transition:all .4s}
+.nav::before{content:'';position:absolute;inset:0;background:linear-gradient(to bottom,rgba(7,18,10,.9),transparent);pointer-events:none;transition:all .4s}
+.nav.solid::before{background:rgba(7,18,10,.97);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,.06)}
+.brand{display:flex;align-items:center;gap:10px;position:relative;z-index:1}
+.brand-icon{width:40px;height:40px;background:linear-gradient(135deg,var(--terra),var(--terra-lt));border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;box-shadow:0 4px 20px rgba(192,57,43,.4);transition:transform .3s}
+.brand:hover .brand-icon{transform:rotate(-8deg) scale(1.05)}
+.brand-txt{font-family:'Cormorant Garamond',serif;font-size:1.5rem;font-weight:700}
+.brand-txt span{color:var(--gold)}
+.nav-ul{display:flex;align-items:center;gap:4px;position:relative;z-index:1}
+.nav-ul a{font-size:.84rem;font-weight:500;letter-spacing:.05em;text-transform:uppercase;color:rgba(248,244,238,.72);padding:8px 13px;border-radius:8px;transition:all .25s}
+.nav-ul a:hover{color:#fff;background:rgba(255,255,255,.09)}
+.nav-cta{background:linear-gradient(135deg,var(--terra),var(--terra-lt)) !important;color:#fff !important;padding:9px 20px !important;border-radius:20px !important;font-weight:600 !important;box-shadow:0 4px 20px rgba(192,57,43,.35) !important;display:flex !important;align-items:center !important;gap:7px !important;transition:all .3s !important}
+.nav-cta:hover{transform:translateY(-2px) !important;box-shadow:0 8px 30px rgba(192,57,43,.55) !important}
+.ham{display:none;flex-direction:column;gap:5px;cursor:pointer;padding:8px;position:relative;z-index:1}
+.ham span{width:24px;height:2px;background:var(--cream);border-radius:2px;transition:all .3s}
+
+/* HERO */
+#home{min-height:100vh;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.h-bg{position:absolute;inset:0;background:url('https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?auto=format&fit=crop&w=1920&q=80') center/cover;animation:hzoom 20s ease-in-out infinite alternate}
+@keyframes hzoom{from{transform:scale(1)}to{transform:scale(1.07)}}
+.h-ov{position:absolute;inset:0;background:radial-gradient(ellipse 80% 80% at 50% 50%,rgba(7,18,10,.28) 0%,rgba(7,18,10,.78) 100%),linear-gradient(180deg,rgba(7,18,10,.5) 0%,rgba(7,18,10,.15) 45%,rgba(7,18,10,.85) 100%)}
+.h-grain{position:absolute;inset:0;opacity:.4;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='.05'/%3E%3C/svg%3E");background-size:200px}
+.h-fade{position:absolute;bottom:0;left:0;right:0;height:220px;background:linear-gradient(transparent,var(--ink));pointer-events:none}
+.h-content{position:relative;z-index:2;text-align:center;padding:0 5%;max-width:920px}
+.h-badge{display:inline-flex;align-items:center;gap:10px;background:rgba(39,160,88,.15);border:1px solid rgba(39,160,88,.35);padding:8px 20px;border-radius:30px;font-size:.72rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--lime);margin-bottom:2rem;animation:fslide .8s .2s both}
+.h-badge .bdot{width:6px;height:6px;border-radius:50%;background:var(--lime);animation:bpulse 2s infinite}
+@keyframes bpulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.6)}}
+.h-title{font-family:'Cormorant Garamond',serif;font-size:clamp(3rem,8vw,6.5rem);line-height:1.0;font-weight:600;letter-spacing:-.02em;margin-bottom:1.5rem;animation:fslide .8s .3s both}
+.h-title em{font-style:italic;color:var(--gold)}
+.h-title .bl{display:block}
+.h-sub{font-size:clamp(.95rem,2vw,1.18rem);color:rgba(248,244,238,.72);line-height:1.85;max-width:560px;margin:0 auto 3rem;font-weight:300;animation:fslide .8s .45s both}
+.h-btns{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;animation:fslide .8s .6s both}
+.btn{display:inline-flex;align-items:center;gap:9px;padding:15px 36px;border-radius:50px;font-family:'Jost',sans-serif;font-size:.94rem;font-weight:600;letter-spacing:.04em;cursor:pointer;border:none;transition:all .35s cubic-bezier(.34,1.56,.64,1);position:relative;overflow:hidden}
+.btn::after{content:'';position:absolute;inset:0;background:rgba(255,255,255,.15);transform:scaleX(0);transform-origin:left;transition:transform .4s ease}
+.btn:hover::after{transform:scaleX(1)}
+.btn:hover{transform:translateY(-3px)}
+.btn-g{background:linear-gradient(135deg,var(--emerald),var(--leaf));color:#fff;box-shadow:0 6px 28px rgba(26,107,60,.5)}
+.btn-g:hover{box-shadow:0 12px 40px rgba(26,107,60,.6)}
+.btn-o{background:transparent;color:var(--cream);border:1.5px solid rgba(248,244,238,.28)}
+.btn-o:hover{border-color:var(--cream);background:rgba(255,255,255,.06)}
+.h-stats{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:4rem;animation:fslide .8s .75s both}
+.hst{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(14px);padding:20px 28px;border-radius:var(--r);min-width:115px;text-align:center;transition:all .3s ease}
+.hst:hover{background:rgba(39,160,88,.13);border-color:rgba(39,160,88,.4);transform:translateY(-5px)}
+.hst-n{font-family:'Cormorant Garamond',serif;font-size:2.5rem;font-weight:700;color:#fff;line-height:1}
+.hst-l{font-size:.68rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--lime);margin-top:6px}
+.h-scroll{position:absolute;bottom:40px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:8px;color:rgba(255,255,255,.38);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;z-index:2;animation:fslide 1s 1.2s both}
+.smouse{width:22px;height:34px;border:1.5px solid rgba(255,255,255,.28);border-radius:12px;display:flex;justify-content:center;padding-top:6px}
+.swheel{width:3px;height:7px;background:var(--lime);border-radius:2px;animation:sw 1.8s ease-in-out infinite}
+@keyframes sw{0%,100%{transform:translateY(0);opacity:1}50%{transform:translateY(8px);opacity:.25}}
+@keyframes fslide{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:translateY(0)}}
+
+/* HOW IT WORKS */
+#how{position:relative;overflow:hidden;padding:130px 5%}
+.sec-bg{position:absolute;inset:0;background-size:cover;background-position:center;background-attachment:fixed}
+.sec-ov{position:absolute;inset:0}
+.sec-inner{position:relative;z-index:1}
+#how .sec-bg{background-image:url('https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1920&q=80')}
+#how .sec-ov{background:rgba(5,14,8,.84)}
+.slabel{display:inline-block;font-size:.72rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--lime);margin-bottom:14px}
+.stitle{font-family:'Cormorant Garamond',serif;font-size:clamp(2.2rem,5vw,3.8rem);font-weight:600;line-height:1.1;margin-bottom:1rem}
+.ssub{font-size:1rem;color:rgba(248,244,238,.6);line-height:1.85;font-weight:300;max-width:480px}
+.tc{text-align:center}.tc .ssub{margin:0 auto}
+.steps-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:22px;margin-top:58px}
+.sc{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);backdrop-filter:blur(16px);border-radius:var(--r-lg);padding:2.5rem 2rem;position:relative;overflow:hidden;transition:all .4s cubic-bezier(.34,1.2,.64,1)}
+.sc::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(39,160,88,.09),transparent 60%);opacity:0;transition:opacity .4s}
+.sc:hover{transform:translateY(-10px);border-color:rgba(39,160,88,.38);box-shadow:0 24px 60px rgba(0,0,0,.45),0 0 0 1px rgba(39,160,88,.14)}
+.sc:hover::before{opacity:1}
+.sc-num{position:absolute;top:18px;right:20px;font-family:'Cormorant Garamond',serif;font-size:4rem;font-weight:700;line-height:1;color:rgba(255,255,255,.04)}
+.sc-ico{width:64px;height:64px;background:linear-gradient(135deg,var(--emerald),var(--leaf));border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:1.7rem;margin-bottom:1.5rem;box-shadow:0 8px 24px rgba(26,107,60,.4);transition:transform .4s cubic-bezier(.34,1.56,.64,1)}
+.sc:hover .sc-ico{transform:rotate(-8deg) scale(1.1)}
+.sc h3{font-family:'Cormorant Garamond',serif;font-size:1.35rem;font-weight:600;color:#fff;margin-bottom:.7rem}
+.sc p{font-size:.87rem;color:rgba(248,244,238,.55);line-height:1.78}
+.sc-bar{position:absolute;bottom:0;left:0;height:3px;width:0;background:linear-gradient(90deg,var(--emerald),var(--gold));transition:width .5s ease;border-radius:0 0 3px 3px}
+.sc:hover .sc-bar{width:100%}
+
+/* PREDICT */
+#predict{position:relative;overflow:hidden;padding:130px 5%;background:var(--cream);color:var(--ink)}
+.ldeco{position:absolute;top:0;bottom:0;width:280px;background-size:cover;background-position:center}
+.ldeco-l{left:-70px;background-image:url('https://images.unsplash.com/photo-1501004318641-b39e6451bec6?auto=format&fit=crop&w=600&q=80');opacity:.18;mask-image:linear-gradient(to right,rgba(0,0,0,.55),transparent)}
+.ldeco-r{right:-70px;background-image:url('https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=600&q=80');opacity:.14;mask-image:linear-gradient(to left,rgba(0,0,0,.5),transparent)}
+.pg{display:grid;grid-template-columns:1fr 1fr;gap:70px;align-items:start;position:relative;z-index:1}
+.pi .slabel{color:var(--emerald)}.pi .stitle{color:var(--ink)}.pi .ssub{color:var(--muted)}
+.tags{display:flex;flex-wrap:wrap;gap:10px;margin-top:2rem}
+.tag{background:rgba(26,107,60,.08);border:1.5px solid rgba(26,107,60,.22);color:var(--emerald);font-size:.78rem;font-weight:600;letter-spacing:.04em;padding:7px 16px;border-radius:20px;transition:all .25s;cursor:default}
+.tag:hover{background:var(--emerald);color:#fff;border-color:var(--emerald);transform:translateY(-2px)}
+.uc{background:#fff;border-radius:28px;padding:2.5rem;box-shadow:0 8px 50px rgba(0,0,0,.09);border:1.5px solid rgba(26,107,60,.09);position:relative;overflow:hidden}
+.uc::after{content:'';position:absolute;top:-50px;right:-50px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(26,107,60,.08),transparent 70%);pointer-events:none}
+.dz{border:2px dashed rgba(26,107,60,.28);border-radius:18px;padding:2.5rem 2rem;text-align:center;cursor:pointer;transition:all .3s;background:linear-gradient(135deg,rgba(39,160,88,.03),rgba(26,107,60,.04));position:relative;overflow:hidden;margin-bottom:1.5rem;display:block}
+.dz:hover,.dz.act{border-color:var(--leaf);background:rgba(39,160,88,.07);transform:scale(1.01)}
+.dz-ic{font-size:3rem;color:rgba(26,107,60,.38);display:block;margin-bottom:1rem;transition:all .4s cubic-bezier(.34,1.56,.64,1)}
+.dz:hover .dz-ic{transform:translateY(-7px) scale(1.12);color:var(--leaf)}
+.dz-t{font-family:'Cormorant Garamond',serif;font-size:1.3rem;color:var(--ink);margin-bottom:6px}
+.dz-s{font-size:.83rem;color:var(--muted)}.dz-lk{color:var(--leaf);font-weight:600;text-decoration:underline}
+#prevImg{width:100%;max-height:220px;object-fit:cover;border-radius:12px;margin-bottom:1rem;display:none}
+input[type=file]{display:none}
+.abtn{width:100%;padding:16px;background:linear-gradient(135deg,var(--emerald),var(--leaf));color:#fff;border:none;border-radius:var(--r);font-family:'Jost',sans-serif;font-size:1rem;font-weight:700;cursor:pointer;letter-spacing:.04em;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .35s;box-shadow:0 6px 28px rgba(26,107,60,.35);position:relative;overflow:hidden}
+.abtn::after{content:'';position:absolute;inset:0;background:rgba(255,255,255,.15);transform:scaleX(0);transform-origin:left;transition:transform .4s}
+.abtn:hover::after{transform:scaleX(1)}
+.abtn:hover{box-shadow:0 12px 38px rgba(26,107,60,.5);transform:translateY(-2px)}
+.abtn:disabled{opacity:.55;cursor:not-allowed;transform:none}
+#spinner{text-align:center;padding:2rem 0;display:none}
+.spr{width:52px;height:52px;margin:0 auto 1rem;border:4px solid rgba(26,107,60,.15);border-top-color:var(--leaf);border-radius:50%;animation:sp .9s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+#spinner p{font-size:.9rem;color:var(--muted)}
+#result{margin-top:1.5rem;display:none}
+.rh{background:linear-gradient(135deg,var(--forest),var(--emerald));border-radius:16px;padding:1.4rem 1.6rem;display:flex;align-items:center;gap:14px;margin-bottom:12px}
+.ri{width:52px;height:52px;background:rgba(255,255,255,.12);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.6rem;flex-shrink:0}
+.rt{font-family:'Cormorant Garamond',serif;font-size:1.4rem;font-weight:600;color:#fff}
+.rc{font-size:.76rem;color:var(--lime);margin-top:3px}
+.rcs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.rcp{background:var(--sand);border-radius:12px;padding:13px 16px}
+.rcp label{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);display:block;margin-bottom:4px}
+.rcp span{font-size:1.05rem;font-weight:700;color:var(--ink)}
+.rdesc{border-left:3px solid var(--leaf);border-radius:0 10px 10px 0;background:rgba(39,160,88,.05);padding:14px 16px;font-size:.88rem;color:var(--muted);line-height:1.75;margin-bottom:12px}
+.rtrt{background:#fff;border-radius:14px;padding:1.3rem 1.5rem;border:1.5px solid var(--sand)}
+.rtrt h4{font-family:'Cormorant Garamond',serif;font-size:1.1rem;color:var(--ink);margin-bottom:10px}
+.rtrt li{padding:9px 0 9px 28px;font-size:.87rem;color:var(--muted);border-bottom:1px solid var(--sand);position:relative}
+.rtrt li:last-child{border:none}
+.rtrt li::before{content:'✓';position:absolute;left:0;color:var(--leaf);font-weight:800}
+#errmsg{background:#fef3f2;border:1.5px solid #fca5a5;border-radius:12px;padding:1rem 1.4rem;color:var(--terra);font-size:.88rem;margin-top:1rem;display:none}
+
+/* DISEASES */
+#diseases{position:relative;overflow:hidden;padding:130px 5%}
+#diseases .sec-bg{background-image:url('https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&w=1920&q=80')}
+#diseases .sec-ov{background:rgba(3,10,6,.89)}
+.dg{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px;margin-top:58px}
+.dc{position:relative;overflow:hidden;border-radius:var(--r-lg);transition:all .4s cubic-bezier(.34,1.2,.64,1)}
+.dc-in{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:var(--r-lg);padding:2rem;height:100%;transition:all .4s;backdrop-filter:blur(8px)}
+.dc:hover{transform:translateY(-8px) scale(1.01)}
+.dc:hover .dc-in{background:rgba(255,255,255,.08);border-color:rgba(109,207,135,.28);box-shadow:0 20px 50px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.09)}
+.dc-glow{position:absolute;inset:0;background:radial-gradient(circle at 50% 0%,rgba(39,160,88,.14),transparent 65%);opacity:0;transition:opacity .4s;pointer-events:none;border-radius:var(--r-lg)}
+.dc:hover .dc-glow{opacity:1}
+.dc-em{font-size:2.2rem;margin-bottom:1.2rem;display:block}
+.dc h3{font-family:'Cormorant Garamond',serif;font-size:1.25rem;font-weight:600;color:var(--lime);margin-bottom:.6rem}
+.dc p{font-size:.85rem;color:rgba(248,244,238,.5);line-height:1.72}
+.sp{display:inline-block;font-size:.67rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:4px 12px;border-radius:20px;margin-top:1rem}
+.sp-h{background:rgba(192,57,43,.2);color:#f87171;border:1px solid rgba(248,113,113,.18)}
+.sp-m{background:rgba(212,168,71,.2);color:var(--gold-lt);border:1px solid rgba(212,168,71,.18)}
+.sp-l{background:rgba(39,160,88,.2);color:var(--lime);border:1px solid rgba(39,160,88,.18)}
+
+/* ABOUT */
+#about{position:relative;overflow:hidden;padding:130px 5%;background:var(--cream);color:var(--ink)}
+.ag{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center}
+.mosaic{position:relative;height:540px}
+.mi{position:absolute;border-radius:20px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.18)}
+.mi img{width:100%;height:100%;object-fit:cover}
+.m1{width:65%;height:65%;top:0;left:0;z-index:2}
+.m2{width:52%;height:50%;bottom:0;right:0;z-index:3;box-shadow:0 24px 60px rgba(0,0,0,.22)}
+.m3{width:38%;height:38%;bottom:8%;left:10%;z-index:4;border:4px solid #fff}
+.mbadge{position:absolute;top:55%;right:8%;z-index:5;background:linear-gradient(135deg,var(--forest),var(--emerald));color:#fff;border-radius:var(--r);padding:1.2rem 1.5rem;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.28)}
+.mbadge strong{font-family:'Cormorant Garamond',serif;display:block;font-size:2rem;font-weight:700}
+.mbadge span{font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:var(--lime)}
+.at .slabel{color:var(--emerald)}.at .stitle{color:var(--ink)}.at .ssub{color:var(--muted);max-width:100%}
+.fl{display:flex;flex-direction:column;gap:18px;margin-top:2.5rem}
+.feat{display:flex;align-items:flex-start;gap:16px;padding:1.2rem 1.4rem;border-radius:var(--r);border:1.5px solid rgba(26,107,60,.1);background:rgba(26,107,60,.04);transition:all .3s}
+.feat:hover{border-color:rgba(26,107,60,.28);background:rgba(26,107,60,.08);transform:translateX(6px)}
+.fi{width:46px;height:46px;flex-shrink:0;background:linear-gradient(135deg,var(--emerald),var(--leaf));border-radius:12px;color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.1rem;box-shadow:0 6px 18px rgba(26,107,60,.35)}
+.ft h4{font-size:.95rem;font-weight:700;color:var(--ink);margin-bottom:4px}
+.ft p{font-size:.85rem;color:var(--muted);line-height:1.65}
+
+/* ===== ABOUT SECTION (CLEAN VERSION) ===== */
+
+#about {
+  background: #f8f4ee;
+  padding: 120px 5%;
+  color: #07120a;
+}
+
+.about-wrapper {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  align-items: center;
+}
+
+.about-image {
+  position: relative;
+  width: 100%;
+  height: 520px;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 0 25px 60px rgba(0,0,0,0.2);
+}
+
+.about-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.about-badge {
+  position: absolute;
+  bottom: 25px;
+  right: 25px;
+  background: linear-gradient(135deg,#0d2b1a,#1a6b3c);
+  color: white;
+  padding: 18px 24px;
+  border-radius: 14px;
+  text-align: center;
+}
+
+.about-badge h3 {
+  font-size: 30px;
+  margin-bottom: 4px;
+}
+
+.about-badge span {
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+.about-content h2 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 48px;
+  margin-bottom: 20px;
+  line-height: 1.2;
+}
+
+.about-content p {
+  font-size: 16px;
+  color: #5a6e60;
+  margin-bottom: 30px;
+  line-height: 1.8;
+}
+
+.about-label {
+  font-size: 12px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: #1a6b3c;
+  font-weight: 600;
+}
+
+.about-features {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.feature {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  padding: 18px;
+  border-radius: 14px;
+  background: rgba(26,107,60,0.05);
+  transition: 0.3s ease;
+}
+
+.feature:hover {
+  background: rgba(26,107,60,0.1);
+  transform: translateX(6px);
+}
+
+.feature i {
+  font-size: 22px;
+  color: #1a6b3c;
+}
+
+/* Responsive */
+@media(max-width: 900px){
+  .about-wrapper {
+    grid-template-columns: 1fr;
+    gap: 50px;
+  }
+
+  .about-image {
+    height: 400px;
+  }
+}
+
+
+/* TRUST */
+#trust{position:relative;overflow:hidden;padding:100px 5%;background:var(--forest)}
+.ts-bg{position:absolute;inset:0;background:url('https://images.unsplash.com/photo-1542601906897-ecd47dd6ae2e?auto=format&fit=crop&w=1920&q=80') center/cover;opacity:.06}
+.tg{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;margin-top:50px}
+.tc-card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:var(--r-lg);padding:2rem;backdrop-filter:blur(10px);transition:all .35s}
+.tc-card:hover{background:rgba(39,160,88,.08);border-color:rgba(39,160,88,.28);transform:translateY(-5px);box-shadow:0 16px 40px rgba(0,0,0,.3)}
+.tc-stars{color:var(--gold);font-size:.9rem;margin-bottom:1rem;letter-spacing:2px}
+.tc-q{font-size:.9rem;color:rgba(248,244,238,.62);line-height:1.82;font-style:italic;margin-bottom:1.2rem}
+.tc-au{display:flex;align-items:center;gap:12px}
+.tc-av{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--emerald),var(--lime));display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;color:#fff;font-family:'Cormorant Garamond',serif;flex-shrink:0}
+.tc-nm{font-size:.85rem;font-weight:700;color:#fff}
+.tc-rl{font-size:.72rem;color:var(--lime)}
+
+/* FOOTER */
+footer{position:relative;overflow:hidden;background:var(--ink);padding:80px 5% 36px;border-top:1px solid rgba(255,255,255,.06)}
+.fbg{position:absolute;inset:0;background:url('https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?auto=format&fit=crop&w=1920&q=80') center/cover;opacity:.04}
+.fg{display:grid;grid-template-columns:1.8fr 1fr 1fr;gap:58px;margin-bottom:48px;position:relative;z-index:1}
+.fb p{font-size:.87rem;line-height:1.85;color:rgba(248,244,238,.42);margin-top:1.2rem;max-width:290px}
+footer h4{font-family:'Cormorant Garamond',serif;font-size:1rem;color:rgba(248,244,238,.88);margin-bottom:1rem;letter-spacing:.04em}
+.fls{display:flex;flex-direction:column;gap:10px}
+.fls a{font-size:.87rem;color:rgba(248,244,238,.42);transition:color .2s;display:flex;align-items:center;gap:6px}
+.fls a:hover{color:var(--lime)}
+.fch{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,var(--terra),var(--terra-lt));color:#fff;padding:12px 22px;border-radius:12px;font-size:.88rem;font-weight:700;margin-top:.8rem;transition:all .3s;border:none;cursor:pointer;font-family:'Jost',sans-serif}
+.fch:hover{transform:translateX(5px);box-shadow:0 8px 25px rgba(192,57,43,.45)}
+.fb-bot{border-top:1px solid rgba(255,255,255,.07);padding-top:28px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;position:relative;z-index:1}
+.fb-bot p{font-size:.78rem;color:rgba(248,244,238,.28)}
+.fso{display:flex;gap:10px}
+.fso a{width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;color:rgba(248,244,238,.48);font-size:.85rem;transition:all .25s}
+.fso a:hover{background:var(--emerald);color:#fff;border-color:var(--emerald);transform:translateY(-3px)}
+
+/* FAB */
+.fab{position:fixed;bottom:32px;right:32px;z-index:800;width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--terra),var(--terra-lt));display:flex;align-items:center;justify-content:center;font-size:1.55rem;color:#fff;box-shadow:0 8px 32px rgba(192,57,43,.55),0 0 0 0 rgba(192,57,43,.4);border:none;cursor:pointer;transition:all .35s cubic-bezier(.34,1.56,.64,1);animation:fabp 3s ease-in-out infinite}
+@keyframes fabp{0%,100%{box-shadow:0 8px 32px rgba(192,57,43,.55),0 0 0 0 rgba(192,57,43,.4)}50%{box-shadow:0 8px 32px rgba(192,57,43,.55),0 0 0 14px rgba(192,57,43,0)}}
+.fab:hover{transform:scale(1.12) rotate(-8deg);animation:none;box-shadow:0 14px 45px rgba(192,57,43,.65)}
+.fabt{position:fixed;bottom:44px;right:108px;background:var(--forest);color:var(--cream);font-size:.82rem;font-weight:600;padding:9px 15px;border-radius:10px;white-space:nowrap;pointer-events:none;opacity:0;transform:translateX(10px);transition:all .3s;box-shadow:0 4px 20px rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.07)}
+.fabt::after{content:'';position:absolute;top:50%;right:-6px;transform:translateY(-50%);border:6px solid transparent;border-left-color:var(--forest);border-right:0}
+.fab:hover+.fabt{opacity:1;transform:translateX(0)}
+
+/* CHATBOT */
+.ch-ov{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(6px);z-index:1000;display:none;align-items:flex-end;justify-content:flex-end;padding:32px}
+.ch-ov.open{display:flex;animation:fi .25s ease}
+@keyframes fi{from{opacity:0}to{opacity:1}}
+.ch-pn{background:var(--cream);border-radius:28px;width:390px;max-width:100%;max-height:82vh;display:flex;flex-direction:column;box-shadow:0 30px 80px rgba(0,0,0,.4);animation:su .4s cubic-bezier(.34,1.4,.64,1);overflow:hidden}
+@keyframes su{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}
+.ch-hd{background:linear-gradient(135deg,var(--forest),var(--emerald));padding:1.3rem 1.5rem;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.ch-av{width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.14);border:2px solid var(--lime);display:flex;align-items:center;justify-content:center;font-size:1.3rem}
+.ch-hi h3{font-family:'Cormorant Garamond',serif;font-size:1.05rem;color:#fff}
+.ch-st{font-size:.72rem;color:var(--lime);display:flex;align-items:center;gap:5px;margin-top:2px}
+.odot{width:6px;height:6px;border-radius:50%;background:#4ade80;animation:bpulse 2s infinite}
+.ch-cl{margin-left:auto;width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.12);border:none;cursor:pointer;color:#fff;font-size:1rem;display:flex;align-items:center;justify-content:center;transition:background .2s}
+.ch-cl:hover{background:rgba(255,255,255,.22)}
+.ch-ms{flex:1;overflow-y:auto;padding:1.2rem;display:flex;flex-direction:column;gap:12px;background:var(--cream)}
+.ch-ms::-webkit-scrollbar{width:4px}
+.ch-ms::-webkit-scrollbar-thumb{background:var(--sand);border-radius:4px}
+.msg{display:flex;gap:8px;max-width:88%}
+.msg.bot{align-self:flex-start}.msg.user{align-self:flex-end;flex-direction:row-reverse}
+.mav{width:30px;height:30px;border-radius:50%;flex-shrink:0;background:var(--forest);color:var(--lime);display:flex;align-items:center;justify-content:center;font-size:.9rem}
+.mb{padding:10px 14px;border-radius:16px;font-size:.87rem;line-height:1.65}
+.msg.bot .mb{background:#fff;color:var(--ink);border-bottom-left-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.07)}
+.msg.user .mb{background:linear-gradient(135deg,var(--emerald),var(--leaf));color:#fff;border-bottom-right-radius:4px}
+.typing .mb{display:flex;gap:4px;align-items:center;padding:14px}
+.tdot{width:7px;height:7px;background:var(--muted);border-radius:50%;animation:tb 1.2s infinite}
+.tdot:nth-child(2){animation-delay:.2s}.tdot:nth-child(3){animation-delay:.4s}
+@keyframes tb{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.ch-ch{display:flex;flex-wrap:wrap;gap:6px;padding:0 1.2rem .8rem;flex-shrink:0}
+.chip{background:rgba(26,107,60,.08);border:1.5px solid rgba(26,107,60,.2);color:var(--emerald);font-size:.74rem;font-weight:600;padding:5px 13px;border-radius:20px;cursor:pointer;font-family:'Jost',sans-serif;transition:all .2s}
+.chip:hover{background:var(--emerald);color:#fff;border-color:var(--emerald)}
+.ch-ir{display:flex;gap:8px;padding:.8rem 1.2rem 1.2rem;border-top:1.5px solid var(--sand);flex-shrink:0;background:var(--cream)}
+.ch-in{flex:1;border:1.5px solid var(--sand);border-radius:12px;padding:10px 14px;font-family:'Jost',sans-serif;font-size:.87rem;outline:none;color:var(--ink);background:#fff;transition:border-color .2s}
+.ch-in:focus{border-color:var(--leaf)}
+.ch-sn{width:42px;height:42px;background:linear-gradient(135deg,var(--emerald),var(--leaf));border:none;border-radius:12px;cursor:pointer;color:#fff;font-size:.9rem;display:flex;align-items:center;justify-content:center;transition:all .25s}
+.ch-sn:hover{transform:scale(1.1);box-shadow:0 4px 16px rgba(26,107,60,.4)}
+
+/* REVEAL */
+.rv{opacity:0;transform:translateY(36px);transition:opacity .7s ease,transform .7s ease}
+.rv.in{opacity:1;transform:translateY(0)}
+.rvl{opacity:0;transform:translateX(-36px);transition:opacity .7s ease,transform .7s ease}
+.rvl.in{opacity:1;transform:translateX(0)}
+.rvr{opacity:0;transform:translateX(36px);transition:opacity .7s ease,transform .7s ease}
+.rvr.in{opacity:1;transform:translateX(0)}
+
+/* RESPONSIVE */
+@media(max-width:860px){.pg,.ag{grid-template-columns:1fr;gap:50px}}
+@media(max-width:700px){
+  .nav-ul{display:none;flex-direction:column;position:absolute;top:74px;left:0;right:0;background:rgba(7,18,10,.98);padding:1rem 5%;backdrop-filter:blur(20px)}
+  .nav-ul.open{display:flex}
+  .ham{display:flex}
+  .fg{grid-template-columns:1fr;gap:34px}
+  .mosaic{height:300px}.mbadge{display:none}
+  .ch-pn{width:100%;border-radius:20px 20px 0 0}
+  .ch-ov{padding:0;align-items:flex-end;justify-content:center}
+}
+</style>
+</head>
+<body>
+
+<!-- Cursor -->
+<div id="cur-dot"></div>
+<div id="cur-ring"></div>
+<div id="cur-glow"></div>
+<div id="sbar"></div>
+
+<!-- ═══ NAVBAR ═══ -->
+<nav class="nav" id="nav">
+  <a href="#home" class="brand">
+    <div class="brand-icon">🍅</div>
+    <span class="brand-txt">Plant<span>Guard</span></span>
+  </a>
+  <ul class="nav-ul" id="navul">
+    <li><a href="#home">Home</a></li>
+    <li><a href="#how">How It Works</a></li>
+    <li><a href="#predict">Diagnose</a></li>
+    <li><a href="#diseases">Diseases</a></li>
+    <li><a href="#about">About</a></li>
+    <a href="http://localhost:8501" target="_blank">
+  🤖 RAG AI Chatbot</a>
+    
+  </ul>
+  <div class="ham" id="ham" onclick="toggleNav()">
+    <span></span><span></span><span></span>
+  </div>
+</nav>
+
+<!-- ═══ HERO ═══ -->
+<section id="home">
+  <div class="h-bg"></div>
+  <div class="h-ov"></div>
+  <div class="h-grain"></div>
+  <div class="h-fade"></div>
+  <div class="h-content">
+    <div class="h-badge"><span class="bdot"></span> AI-Powered Plant Health</div>
+    <h1 class="h-title">
+      <span class="bl">Detect Plant</span>
+      <em>Diseases Instantly</em>
+    </h1>
+    <p class="h-sub">Upload a photo of your tomato plant and receive an instant AI diagnosis with expert treatment recommendations — protecting your harvest before it's too late.</p>
+    <div class="h-btns">
+      <a href="#predict" class="btn btn-g"><i class="fas fa-camera"></i> Analyze Your Plant</a>
+      <a href="#" class="btn btn-o" onclick="openChat(event)"><i class="fas fa-robot"></i> Chat with AI</a>
+    </div>
+    <div class="h-stats">
+      <div class="hst"><div class="hst-n" data-count="10">0</div><div class="hst-l">Disease Types</div></div>
+      <div class="hst"><div class="hst-n" data-count="95">0</div><div class="hst-l">% Accuracy</div></div>
+      <div class="hst"><div class="hst-n" data-count="2">0</div><div class="hst-l">Sec Analysis</div></div>
+      <div class="hst"><div class="hst-n" data-count="500">0</div><div class="hst-l">+ Farmers</div></div>
+    </div>
+  </div>
+  <div class="h-scroll">
+    <div class="smouse"><div class="swheel"></div></div>
+    <span>Scroll</span>
+  </div>
+</section>
+
+<!-- ═══ HOW IT WORKS ═══ -->
+<section id="how">
+  <div class="sec-bg"></div>
+  <div class="sec-ov"></div>
+  <div class="sec-inner">
+    <div class="tc rv">
+      <span class="slabel">Simple Process</span>
+      <h2 class="stitle">How It Works</h2>
+      <p class="ssub">Three effortless steps from photo to diagnosis — no expertise required.</p>
+    </div>
+    <div class="steps-row">
+      <div class="sc rv" style="transition-delay:.1s">
+        <div class="sc-num">01</div>
+        <div class="sc-ico">📷</div>
+        <h3>Upload a Photo</h3>
+        <p>Take a clear photo of any affected leaf or plant area. Drag & drop or tap to browse from your device.</p>
+        <div class="sc-bar"></div>
+      </div>
+      <div class="sc rv" style="transition-delay:.2s">
+        <div class="sc-num">02</div>
+        <div class="sc-ico">🧠</div>
+        <h3>AI Analysis</h3>
+        <p>Our deep learning model scans your image and identifies disease patterns across 10+ tomato conditions in seconds.</p>
+        <div class="sc-bar"></div>
+      </div>
+      <div class="sc rv" style="transition-delay:.3s">
+        <div class="sc-num">03</div>
+        <div class="sc-ico">💊</div>
+        <h3>Get Treatment</h3>
+        <p>Receive a full diagnosis with severity level and a step-by-step treatment plan to save your plants fast.</p>
+        <div class="sc-bar"></div>
+      </div>
+      <div class="sc rv" style="transition-delay:.4s">
+        <div class="sc-num">04</div>
+        <div class="sc-ico">🤖</div>
+        <h3>Ask the Bot</h3> 
+        <p>Have follow-up questions? Our AI chatbot is available 24/7 for personalized advice and support.</p>
+        <div class="sc-bar"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ PREDICT ═══ -->
+<section id="predict">
+  <div class="ldeco ldeco-l"></div>
+  <div class="ldeco ldeco-r"></div>
+  <div class="pg">
+    <div class="pi rvl">
+      <span class="slabel">AI Detection Tool</span>
+      <h2 class="stitle">Diagnose<br>Your Plant</h2>
+      <p class="ssub">Upload a clear image of your tomato leaf. Our model identifies the disease and suggests the best treatment instantly.</p>
+      <div class="tags">
+        <span class="tag">🍂 Early Blight</span>
+        <span class="tag">🌫 Late Blight</span>
+        <span class="tag">🟤 Leaf Mold</span>
+        <span class="tag">🔵 Septoria</span>
+        <span class="tag">🦠 Bacterial Spot</span>
+        <span class="tag">🕷 Spider Mites</span>
+        <span class="tag">🌀 Mosaic Virus</span>
+        <span class="tag">✅ Healthy</span>
+      </div>
+    </div>
+    <div class="rvr">
+      <div class="uc">
+        <form id="upForm">
+          <label class="dz" id="dz" for="fi">
+            <img id="prevImg" alt="Preview">
+            <i class="fas fa-seedling dz-ic" id="dzic"></i>
+            <p class="dz-t" id="dzt">Drop your leaf image here</p>
+            <p class="dz-s">or <span class="dz-lk">browse from device</span></p>
+            <p class="dz-s" style="margin-top:5px;font-size:.76rem">JPG, PNG, WEBP accepted</p>
+          </label>
+          <input type="file" id="fi" name="file" accept="image/*" required>
+          <button type="submit" class="abtn" id="abtn">
+            <i class="fas fa-microscope"></i> Analyze for Disease
+          </button>
+        </form>
+        <div id="spinner"><div class="spr"></div><p>Analyzing with AI…</p></div>
+        <div id="result">
+          <div class="rh">
+            <div class="ri">🦠</div>
+            <div><div class="rt" id="rD">—</div><div class="rc">Predicted Disease</div></div>
+          </div>
+          <div class="rcs">
+            <div class="rcp"><label>Confidence</label><span id="rC">—</span></div>
+            <div class="rcp"><label>Status</label><span id="rS">—</span></div>
+          </div>
+          <div class="rdesc" id="rDesc"></div>
+          <div class="rtrt"><h4><i class="fas fa-notes-medical" style="color:var(--leaf);margin-right:6px"></i>Treatment Plan</h4><ul id="rT"></ul></div>
+        </div>
+        <div id="errmsg"><i class="fas fa-exclamation-circle"></i> <span id="errTxt"></span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ DISEASES ═══ -->
+<section id="diseases">
+  <div class="sec-bg"></div>
+  <div class="sec-ov"></div>
+  <div class="sec-inner">
+    <div class="tc rv">
+      <span class="slabel">Disease Library</span>
+      <h2 class="stitle">Detectable Conditions</h2>
+      <p class="ssub" style="max-width:480px;margin:0 auto">Trained on thousands of annotated images covering the most destructive plant diseases worldwide.</p>
+    </div>
+    <div class="dg">
+      <div class="dc rv" style="transition-delay:.05s"><div class="dc-glow"></div><div class="dc-in"><span class="dc-em">🍂</span><h3>Early Blight</h3><p>Dark concentric ring lesions on older leaves causing yellowing and early drop. Spreads rapidly in warm, wet weather.</p><span class="sp sp-m">Medium Risk</span></div></div>
+      <div class="dc rv" style="transition-delay:.1s"><div class="dc-glow"></div><div class="dc-in"><span class="dc-em">🌫️</span><h3>Late Blight</h3><p>Water-soaked spots turning dark brown with white mold. Can destroy entire crops within days if untreated.</p><span class="sp sp-h">High Risk</span></div></div>
+      <div class="dc rv" style="transition-delay:.15s"><div class="dc-glow"></div><div class="dc-in"><span class="dc-em">🟤</span><h3>Leaf Mold</h3><p>Pale green-yellow spots above with olive-brown velvet mold below. Common in high-humidity greenhouses.</p><span class="sp sp-m">Medium Risk</span></div></div>
+      <div class="dc rv" style="transition-delay:.2s"><div class="dc-glow"></div><div class="dc-in"><span class="dc-em">🔵</span><h3>Septoria Leaf Spot</h3><p>Small circular spots with dark borders and light centers, causing significant early defoliation.</p><span class="sp sp-m">Medium Risk</span></div></div>
+      <div class="dc rv" style="transition-delay:.25s"><div class="dc-glow"></div><div class="dc-in"><span class="dc-em">🦠</span><h3>Bacterial Spot</h3><p>Angular water-soaked spots spreading via rain splash. Affects both foliage and fruit quality severely.</p><span class="sp sp-h">High Risk</span></div></div>
+      <div class="dc rv" style="transition-delay:.3s"><div class="dc-glow"></div><div class="dc-in"><span class="dc-em">🕷️</span><h3>Spider Mites</h3><p>Tiny pests causing stippled bronze leaves with fine webbing. Thrives in hot, dry conditions and spreads fast.</p><span class="sp sp-m">Medium Risk</span></div></div>
+      <div class="dc rv" style="transition-delay:.35s"><div class="dc-glow"></div><div class="dc-in"><span class="dc-em">🌀</span><h3>Mosaic Virus</h3><p>Mottled light-dark green mosaic on leaves. Spread by aphids — no cure, only prevention and removal.</p><span class="sp sp-h">High Risk</span></div></div>
+      <div class="dc rv" style="transition-delay:.4s"><div class="dc-glow"></div><div class="dc-in"><span class="dc-em">🌿</span><h3>Healthy Plant</h3><p>No disease detected! Your plant shows vibrant healthy foliage with normal growth patterns. Keep it up!</p><span class="sp sp-l">No Risk</span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ ABOUT ═══ -->
+<section id="about">
+  <div class="about-wrapper">
+    
+    <!-- LEFT IMAGE -->
+    <div class="about-image">
+      <img src="/static/images/Septoria_Leaf_Spot_of_Tomato186.jpg" alt="Tomato Leaf with Septoria Leaf Spot Disease">
+      <div class="about-badge">
+        <h3>95%</h3>
+        <span>Accuracy Rate</span>
+      </div>
+    </div>
+
+    <!-- RIGHT CONTENT -->
+    <div class="about-content">
+      <span class="about-label">About PlantGuard</span>
+      <h2>Protecting Harvests<br>with Technology</h2>
+
+      <p>
+        Plant leaf diseases account for up to 30% of crop loss globally each year.
+        Early detection is the single most effective way to save harvests and reduce pesticide use.
+      </p>
+
+      <div class="about-features">
+        <div class="feature">
+          <i class="fas fa-bolt"></i>
+          <div>
+            <h4>Instant Diagnosis</h4>
+            <p>AI-powered disease identification in under 2 seconds — no lab required.</p>
+          </div>
+        </div>
+
+        <div class="feature">
+          <i class="fas fa-brain"></i>
+          <div>
+            <h4>Deep Learning Model</h4>
+            <p>Trained on thousands of annotated tomato plant images.</p>
+          </div>
+        </div>
+
+        <div class="feature">
+          <i class="fas fa-robot"></i>
+          <div>
+            <h4>24/7 AI Chatbot</h4>
+            <p>Ask follow-up questions and get personalized farming advice anytime.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══ TRUST ═══ -->
+<section id="trust">
+  <div class="ts-bg"></div>
+  <div class="sec-inner">
+    <div class="tc rv">
+      <span class="slabel">Testimonials</span>
+      <h2 class="stitle">Trusted by Farmers</h2>
+      <p class="ssub" style="margin:0 auto">Real results from real growers around the world.</p>
+    </div>
+    <div class="tg">
+      <div class="tc-card rv" style="transition-delay:.1s"><div class="tc-stars">★★★★★</div><p class="tc-q">"TomatoGuard identified early blight before I even noticed it. The treatment plan saved my entire crop this season."</p><div class="tc-au"><div class="tc-av">R</div><div><div class="tc-nm">Rajesh Kumar</div><div class="tc-rl">Tomato Farmer, Maharashtra</div></div></div></div>
+      <div class="tc-card rv" style="transition-delay:.2s"><div class="tc-stars">★★★★★</div><p class="tc-q">"Incredibly accurate. I used to rely on weekly agronomist visits — now I scan daily and catch problems instantly."</p><div class="tc-au"><div class="tc-av">A</div><div><div class="tc-nm">Amara Diallo</div><div class="tc-rl">Agricultural Researcher, Senegal</div></div></div></div>
+      <div class="tc-card rv" style="transition-delay:.3s"><div class="tc-stars">★★★★★</div><p class="tc-q">"The AI chatbot answered questions my local extension office couldn't. It's like having a plant doctor in your pocket."</p><div class="tc-au"><div class="tc-av">M</div><div><div class="tc-nm">Maria Santos</div><div class="tc-rl">Greenhouse Operator, Brazil</div></div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ FOOTER ═══ -->
+<footer>
+  <div class="fbg"></div>
+  <div class="fg">
+    <div class="fb">
+      <a href="#home" class="brand">
+        <div class="brand-icon">🍅</div>
+        <span class="brand-txt">Tomato<span>Guard</span></span>
+      </a>
+      <p>AI-powered tomato disease detection helping farmers protect crops and maximize yield with deep learning technology.</p>
+    </div>
+    <div>
+      <h4>Navigation</h4>
+      <div class="fls">
+        <a href="#home">Home</a>
+        <a href="#how">How It Works</a>
+        <a href="#predict">Disease Predictor</a>
+        <a href="#diseases">Disease Library</a>
+        <a href="#about">About</a>
+      </div>
+    </div>
+    <div>
+      <h4>AI Assistant</h4>
+      <p style="font-size:.87rem;color:rgba(248,244,238,.42);line-height:1.78;margin-bottom:1rem">Have questions about your plants? Chat with our AI bot 24/7.</p>
+      <button class="fch" onclick="openChat(event)"><i class="fas fa-robot"></i> Open AI Chatbot</button>
+    </div>
+  </div>
+  <div class="fb-bot">
+    <p>© 2025 TomatoGuard. Built with ❤️ for farmers everywhere.</p>
+    <div class="fso">
+      <a href="#"><i class="fab fa-github"></i></a>
+      <a href="#"><i class="fab fa-twitter"></i></a>
+      <a href="#"><i class="fab fa-linkedin"></i></a>
+    </div>
+  </div>
+</footer>
+
+<!-- FAB -->
+<button class="fab" onclick="openChat(event)" aria-label="Open chatbot"><i class="fas fa-robot"></i></button>
+<div class="fabt">Ask the AI Chatbot</div>
+
+<!-- CHATBOT -->
+<div class="ch-ov" id="chOv" onclick="closeChatOut(event)">
+  <div class="ch-pn">
+    <div class="ch-hd">
+      <div class="ch-av">🤖</div>
+      <div class="ch-hi"><h3>TomatoGuard AI</h3><div class="ch-st"><span class="odot"></span> Online — Ready to help</div></div>
+      <button class="ch-cl" onclick="closeChat()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="ch-ms" id="chMs">
+      <div class="msg bot"><div class="mav">🤖</div><div class="mb">Hi! 🍅 I'm TomatoGuard AI. Ask me about disease identification, treatment plans, fertilizers, and tomato farming tips!</div></div>
+    </div>
+    <div class="ch-ch" id="chCh">
+      <button class="chip" onclick="suggest(this)">What is Early Blight?</button>
+      <button class="chip" onclick="suggest(this)">Prevent Late Blight</button>
+      <button class="chip" onclick="suggest(this)">Best fertilizers?</button>
+      <button class="chip" onclick="suggest(this)">Organic treatments</button>
+    </div>
+    <div class="ch-ir">
+      <input class="ch-in" id="chIn" placeholder="Ask anything about tomatoes…" onkeypress="chatKey(event)">
+      <button class="ch-sn" onclick="sendMsg()"><i class="fas fa-paper-plane"></i></button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── Custom Cursor ── */
+const dot=document.getElementById('cur-dot'),ring=document.getElementById('cur-ring'),glow=document.getElementById('cur-glow');
+let mx=0,my=0,rx=0,ry=0,gx=0,gy=0;
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;dot.style.cssText=`left:${mx}px;top:${my}px`});
+(function ac(){rx+=(mx-rx)*.12;ry+=(my-ry)*.12;gx+=(mx-gx)*.06;gy+=(my-gy)*.06;
+  ring.style.cssText=`left:${rx}px;top:${ry}px`;glow.style.cssText=`left:${gx}px;top:${gy}px`;
+  requestAnimationFrame(ac)})();
+document.querySelectorAll('a,button,.sc,.dc,.feat,.tag,.hst,.chip').forEach(el=>{
+  el.addEventListener('mouseenter',()=>{ring.style.width='52px';ring.style.height='52px';ring.style.borderColor='var(--gold)'});
+  el.addEventListener('mouseleave',()=>{ring.style.width='36px';ring.style.height='36px';ring.style.borderColor='rgba(109,207,135,.55)'});
+});
+
+/* ── Scroll Bar + Navbar ── */
+window.addEventListener('scroll',()=>{
+  const p=(window.scrollY/(document.body.scrollHeight-innerHeight))*100;
+  document.getElementById('sbar').style.width=p+'%';
+  document.getElementById('nav').classList.toggle('solid',window.scrollY>60);
+  /* parallax hero bg */
+  const hbg=document.querySelector('.h-bg');
+  if(hbg)hbg.style.transform=`scale(1.07) translateY(${window.scrollY*.15}px)`;
+});
+
+/* ── Nav toggle ── */
+function toggleNav(){document.getElementById('navul').classList.toggle('open')}
+
+/* ── Scroll Reveal ── */
+const obs=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');obs.unobserve(e.target)}});
+},{threshold:.1});
+document.querySelectorAll('.rv,.rvl,.rvr').forEach(el=>obs.observe(el));
+
+/* ── Counter ── */
+const co=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      const el=e.target,tgt=+el.dataset.count;let cur=0;
+      const inc=tgt/60,t=setInterval(()=>{
+        cur+=inc;if(cur>=tgt){cur=tgt;clearInterval(t)}
+        el.textContent=Math.floor(cur)+(tgt>=100?'%':tgt>10?'+':'+');
+      },18);co.unobserve(el);
+    }
+  });
+},{threshold:.5});
+document.querySelectorAll('[data-count]').forEach(el=>co.observe(el));
+
+/* ── 3D Tilt Cards ── */
+document.querySelectorAll('.sc,.dc').forEach(c=>{
+  c.addEventListener('mousemove',e=>{
+    const r=c.getBoundingClientRect();
+    const x=((e.clientX-r.left)/r.width-.5)*16;
+    const y=((e.clientY-r.top)/r.height-.5)*-16;
+    c.style.transform=`perspective(900px) rotateX(${y}deg) rotateY(${x}deg) translateY(-8px)`;
+  });
+  c.addEventListener('mouseleave',()=>c.style.transform='');
+});
+
+/* ── File Upload ── */
+const fi=document.getElementById('fi'),dz=document.getElementById('dz'),prv=document.getElementById('prevImg'),dzic=document.getElementById('dzic'),dzt=document.getElementById('dzt');
+fi.addEventListener('change',e=>{
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=ev=>{prv.src=ev.target.result;prv.style.display='block';dzic.style.display='none';dzt.textContent=f.name};
+  r.readAsDataURL(f);
+});
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('act')});
+dz.addEventListener('dragleave',()=>dz.classList.remove('act'));
+dz.addEventListener('drop',e=>{
+  e.preventDefault();dz.classList.remove('act');
+  const f=e.dataTransfer.files[0];
+  if(f&&f.type.startsWith('image/')){
+    const dt=new DataTransfer();dt.items.add(f);fi.files=dt.files;fi.dispatchEvent(new Event('change'));
+  }
+});
+
+/* ── Form Submit ── */
+document.getElementById('upForm').addEventListener('submit', async e => {
+  e.preventDefault();
+
+  const res = document.getElementById('result'),
+        err = document.getElementById('errmsg'),
+        sp  = document.getElementById('spinner'),
+        btn = document.getElementById('abtn');
+
+  res.style.display = 'none';
+  err.style.display = 'none';
+
+  if (!fi.files.length) {
+    alert('Please select an image.');
+    return;
+  }
+
+  const fd = new FormData();
+  fd.append('file', fi.files[0]);
+
+  try {
+    sp.style.display = 'block';
+    btn.disabled = true;
+
+    const r = await fetch('/predict', {
+      method: 'POST',
+      body: fd
+    });
+
+    if (!r.ok) {
+      const j = await r.json();
+      throw new Error(j.detail || 'Server error');
+    }
+
+    const d = await r.json();
+
+    // Disease Name
+    document.getElementById('rD').textContent =
+      d.predicted_disease || '—';
+
+    // 🔥 FIXED CONFIDENCE LOGIC
+    let confidence = d.confidence;
+
+    // If backend sends 0.9995 → convert to percentage
+    if (confidence <= 1) {
+      confidence = confidence * 100;
+    }
+
+    document.getElementById('rC').textContent =
+      confidence.toFixed(2) + '%';
+
+    // Status
+    document.getElementById('rS').textContent =
+      d.predicted_disease?.toLowerCase().includes('healthy')
+        ? '✓ Healthy'
+        : '⚠ Diseased';
+
+    // Description
+    document.getElementById('rDesc').textContent =
+      d.description || 'No description available.';
+
+    // Treatment List
+    const ul = document.getElementById('rT');
+    ul.innerHTML = '';
+
+    (d.treatment || ['No treatment info available.'])
+      .forEach(t => {
+        const li = document.createElement('li');
+        li.textContent = t;
+        ul.appendChild(li);
+      });
+
+    res.style.display = 'block';
+    res.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  } catch (e) {
+    document.getElementById('errTxt').textContent = e.message;
+    err.style.display = 'block';
+  } finally {
+    sp.style.display = 'none';
+    btn.disabled = false;
+
+    prv.style.display = 'none';
+    prv.src = '';
+    dzic.style.display = 'block';
+    dzt.textContent = 'Drop your leaf image here';
+    fi.value = '';
+  }
+});
+
+
+/* ── Chatbot ── */
+function openChat(e){if(e)e.preventDefault();document.getElementById('chOv').classList.add('open');document.getElementById('chIn').focus()}
+function closeChat(){document.getElementById('chOv').classList.remove('open')}
+function closeChatOut(e){if(e.target===document.getElementById('chOv'))closeChat()}
+const bots={
+  'early blight':'🍂 Early Blight (Alternaria solani) shows as dark concentric rings on older leaves. Treat with copper-based fungicides, remove infected leaves, and ensure proper airflow.',
+  'late blight':'🚨 Late Blight (Phytophthora infestans) is highly destructive! Apply chlorothalonil or metalaxyl immediately and remove infected plants.',
+  'leaf mold':'🌫 Leaf Mold thrives in high humidity. Improve ventilation, reduce leaf wetness, and apply chlorothalonil fungicide promptly.',
+  'septoria':'🔵 Septoria Leaf Spot: remove infected leaves, apply copper fungicide, avoid wetting foliage, and practice crop rotation.',
+  'bacterial':'💧 Bacterial Spot spreads via water splash. Use copper bactericides and avoid working with wet plants.',
+  'spider':'🕷 Spider Mites: spray neem oil or miticide, maintain humidity, and introduce predatory insects like ladybugs.',
+  'virus':'🌀 Mosaic Virus has no cure. Remove infected plants, control aphids, and use resistant varieties next season.',
+  'fertiliz':'🌱 Use high-phosphorus fertilizer at transplant, balanced NPK during growth, and high-potassium during fruiting.',
+  'organic':'🌿 Organic options: neem oil, OMRI-listed copper fungicide, compost tea, and beneficial insects.',
+  'water':'💧 Water deeply 1–2 inches/week at the base. Drip irrigation is ideal to prevent disease spread.',
+  'hello':'👋 Hello! Ask me about diseases, treatments, fertilizers, or any tomato care tips!',
+  'hi':'🍅 Hi there! Ready to help you grow healthy tomatoes. What would you like to know?',
+  'thank':'😊 You\'re very welcome! Happy farming!',
+};
+function getReply(msg){const m=msg.toLowerCase();for(const k of Object.keys(bots)){if(m.includes(k))return bots[k]}return '🤔 I can help with disease ID, treatments, fertilizers, and care advice. Could you be more specific? E.g. "How do I treat early blight?"'}
+function addMsg(txt,role){
+  const ms=document.getElementById('chMs'),d=document.createElement('div');d.className=`msg ${role}`;
+  d.innerHTML=role==='bot'?`<div class="mav">🤖</div><div class="mb">${txt}</div>`:`<div class="mb">${txt}</div><div class="mav" style="background:var(--emerald)"><i class="fas fa-user" style="font-size:.7rem;color:#fff"></i></div>`;
+  ms.appendChild(d);ms.scrollTop=ms.scrollHeight;
+}
+function showTyping(){
+  const ms=document.getElementById('chMs'),d=document.createElement('div');d.className='msg bot typing';d.id='tp';
+  d.innerHTML='<div class="mav">🤖</div><div class="mb"><span class="tdot"></span><span class="tdot"></span><span class="tdot"></span></div>';
+  ms.appendChild(d);ms.scrollTop=ms.scrollHeight;
+}
+function rmTyping(){const t=document.getElementById('tp');if(t)t.remove()}
+function sendMsg(){
+  const inp=document.getElementById('chIn'),txt=inp.value.trim();if(!txt)return;
+  inp.value='';document.getElementById('chCh').style.display='none';
+  addMsg(txt,'user');showTyping();
+  setTimeout(()=>{rmTyping();addMsg(getReply(txt),'bot')},700+Math.random()*500);
+}
+function suggest(b){document.getElementById('chIn').value=b.textContent;sendMsg()}
+function chatKey(e){if(e.key==='Enter')sendMsg()}
+</script>
+</body>
+</html>
