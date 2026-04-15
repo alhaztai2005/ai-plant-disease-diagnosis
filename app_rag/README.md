@@ -17,4 +17,4 @@ This folder contains the implementation of the Retrieval-Augmented Generation (R
 - Generate accurate responses using retrieved context
 - Serve as backend for chatbot/web app
 
-app_rag.py wale folder me
+
